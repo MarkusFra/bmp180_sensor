@@ -75,7 +75,7 @@ data = bus.read_i2c_block_data(0x77, 0xF6, 3)
 # Convert the data
 pres = ((data[0] * 65536) + (data[1] * 256) + data[2]) / 128
 
-# Callibration for Temperature
+# Calibration for Temperature
 X1 = (temp - AC6) * AC5 / 32768.0
 X2 = (MC * 2048.0) / (X1 + MD)
 B5 = X1 + X2
