@@ -55,9 +55,9 @@ def write_row(database: str, what: str, temp_unit: str = 'C'):
             cur = conn.cursor()
 
             # for debugging
-            cur.execute("SELECT * FROM dev_sensoric.test_table")
-            for row in cur:
-                print(row)
+            # cur.execute("SELECT * FROM dev_sensoric.test_table")
+            # for row in cur:
+            #     print(row)
 
         except mariadb.Error as err:
             log.fatal("Failed to connect to Database. No attempt to write data will be done.")
