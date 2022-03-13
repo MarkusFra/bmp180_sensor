@@ -8,7 +8,13 @@ import smbus2
 import time
 
 
-def get_bmp180_data():
+def get_bmp180_data() -> tuple[float, float, float]:
+    """
+    Read data from BMP180 Sensor
+
+    Returns:
+        c_temp, pressure, altitude
+    """
     # Get I2C bus
     bus = smbus2.SMBus(1)
 
