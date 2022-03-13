@@ -37,7 +37,7 @@ def write_row(database: str, what: str):
         bool: True on Success
 
     """
-    # Connect to MariaDB Server
+    conn = None
     try:
         try:
             conn = mariadb.connect(
@@ -110,8 +110,8 @@ def write_row(database: str, what: str):
             # Write Data to Database
             try:
                 cur.execute(
-                    """
-                    INSERT INTO dev_sensoric.pi_hw_monitor
+                    f"""
+                    INSERT INTO {database}.pi_hw_monitor
                         (nr_of_processes, 
                         cpu_usage, 
                         cpu_frequency, 
@@ -132,6 +132,9 @@ def write_row(database: str, what: str):
                      disk_usage_used)
                 )
 
+                conn.commit()
+                log.info(f"Last Inserted ID in <pi_hw_monitor>: {cur.lastrowid}")
+
             except (Exception, mariadb.Error) as err:
                 log.fatal("Failed to PI Hardware Info Data to database.")
                 log.fatal(str(err) + "\n" + indent(text=traceback.format_exc(), prefix="\t"))
@@ -145,7 +148,13 @@ def write_row(database: str, what: str):
         log.fatal("Unknown Error.")
         log.fatal(str(err) + "\n" + indent(text=traceback.format_exc(), prefix="\t"))
         raise
+    finally:
+        if conn:
+            conn.close()
+            log.info("Connection to MariaDB closed.")
 
 
-if write_row(database='dev_sensoric', what='pi_hw_only'):
-    print("SUCCESS")
+if __name__ == '__main__':
+
+
+    write_row(database='dev_sensoric', what='pi_hw_only')
