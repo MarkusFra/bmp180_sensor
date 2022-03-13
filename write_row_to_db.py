@@ -34,7 +34,7 @@ def write_row(database: str, what: str, temp_unit: str = 'C'):
         database (str): Specifies database to write to: 'dev_sensoric', 'test_sensoric' or 'prod_sensoric'
         what (str): Specifies what to read and write. 'all', 'bmp180_only' or 'pi_hw_only'
         temp_unit (str): Temperature unit of BMP180 measurement. 'C' for Celsius, 'F' for Fahrenheit or
-            'K' for Kelvin (default='C')
+            'K' for Kelvin. Use 'NO' to write Celsius data and skip writing unit information. (default='C')
 
     Returns:
         bool: True on Success
@@ -72,6 +72,10 @@ def write_row(database: str, what: str, temp_unit: str = 'C'):
         if what in ('all', 'bmp180_only'):
             try:
                 bmp180_temp, bmp180_pressure, _ = get_bmp180_data()
+                if temp_unit == 'F':
+                    bmp180_temp = bmp180_temp * 9/5 + 32
+                elif temp_unit == 'K':
+                    bmp180_temp = bmp180_temp + 273.15
             except Exception as err:
                 log.error("Failed to get BMP180 Data. Data is set to None.")
                 log.error(str(err) + "\n" + indent(text=traceback.format_exc(), prefix="\t"))
@@ -94,17 +98,18 @@ def write_row(database: str, what: str, temp_unit: str = 'C'):
                 log.info(f"Inserted row into <sensor_bmp180_values> with ID: {value_pk}")
 
                 # Write corresponding unit into units data
-                cur.execute(
-                    f"""
-                    INSERT INTO {database}.sensor_bmp180_units
-                        (values_id, temperature_unit, pressure_unit) 
-                        VALUES (?, ?, ?);
-                    """,
-                    (value_pk, temp_unit, 'hPa')
-                )
+                if temp_unit != 'NO':
+                    cur.execute(
+                        f"""
+                        INSERT INTO {database}.sensor_bmp180_units
+                            (values_id, temperature_unit, pressure_unit) 
+                            VALUES (?, ?, ?);
+                        """,
+                        (value_pk, temp_unit, 'hPa')
+                    )
 
-                conn.commit()
-                log.info(f"Inserted row into <sensor_bmp180_units> with ID: {cur.lastrowid}")
+                    conn.commit()
+                    log.info(f"Inserted row into <sensor_bmp180_units> with ID: {cur.lastrowid}")
 
             except (Exception, mariadb.Error) as err:
                 log.fatal("Failed to write BMP 180 Sensor data to database.")
@@ -205,9 +210,10 @@ if __name__ == '__main__':
     excl_group.add_argument('--pi_hw_only', action='store_true',
                             help="Specifies what to read and write. 'pi_hw_only' means only pi hardware info data.")
     parser.add_argument('-tu', '--temp_unit', type=str, required=False, default='C',
-                        choices=('C', 'F', 'K'),
+                        choices=('C', 'F', 'K', 'NO'),
                         help="Unit to use for BMP180 Temperature. "
-                             "'C' for Celsius, 'F' for Fahrenheit or 'K' for Kelvin.")
+                             "'C' for Celsius, 'F' for Fahrenheit or 'K' for Kelvin. "
+                             "Or 'NO' to write Celsius data without unit information")
 
     args = parser.parse_args()
 
