@@ -229,9 +229,6 @@ if __name__ == '__main__':
         raise AttributeError("You have to choose at least one option between"
                              " --all_data, --bmp180_only and --pi_hw_only!")
 
-    print(args)
-    print("database: ", database_name)
-    print("what_data: ", what_data)
     log.info(f"Calling write_row() with parameters: database={database_name}, "
              f"what={what_data}, "
              f"temp_unit={args.temp_unit.upper()}")
