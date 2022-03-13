@@ -2,6 +2,7 @@
 import mariadb
 import sys
 import argparse
+from pathlib import Path
 from logging import getLogger, StreamHandler, Formatter
 from logging.handlers import TimedRotatingFileHandler
 import traceback
@@ -11,6 +12,9 @@ from textwrap import indent
 from pi_monitoring import get_fan_rpm, get_cpu_data, get_ram_info, get_disk_info
 from read_sensor import get_bmp180_data
 
+# Constants
+SCRIPT_DIR = Path(__file__).parent
+
 # Logging configuration
 log = getLogger(__name__)
 log_formatter = Formatter(fmt="[%(asctime)s | %(levelname)s | %(name)s.%(funcName)s]: %(message)s",
@@ -19,7 +23,7 @@ log.setLevel("DEBUG")
 s_handler = StreamHandler()
 s_handler.setFormatter(log_formatter)
 s_handler.setLevel(level='INFO')
-f_handler = TimedRotatingFileHandler(filename='./log/write_row_to_db.log', when='midnight')
+f_handler = TimedRotatingFileHandler(filename=SCRIPT_DIR / 'log/write_row_to_db.log', when='midnight')
 f_handler.setFormatter(log_formatter)
 f_handler.setLevel(level='DEBUG')
 log.addHandler(s_handler)
