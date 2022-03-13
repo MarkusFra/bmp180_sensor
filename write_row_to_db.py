@@ -1,6 +1,7 @@
 # External imports
 import mariadb
 import sys
+import argparse
 from logging import getLogger, StreamHandler, Formatter
 from logging.handlers import TimedRotatingFileHandler
 import traceback
@@ -25,13 +26,15 @@ log.addHandler(s_handler)
 log.addHandler(f_handler)
 
 
-def write_row(database: str, what: str):
+def write_row(database: str, what: str, temp_unit: str = 'C'):
     """
     Writes a row with the specified data to the specified database.
 
     Args:
         database (str): Specifies database to write to: 'dev_sensoric', 'test_sensoric' or 'prod_sensoric'
         what (str): Specifies what to read and write. 'all', 'bmp180_only' or 'pi_hw_only'
+        temp_unit (str): Temperature unit of BMP180 measurement. 'C' for Celsius, 'F' for Fahrenheit or
+            'K' for Kelvin (default='C')
 
     Returns:
         bool: True on Success
@@ -73,6 +76,40 @@ def write_row(database: str, what: str):
                 log.error("Failed to get BMP180 Data. Data is set to None.")
                 log.error(str(err) + "\n" + indent(text=traceback.format_exc(), prefix="\t"))
                 bmp180_temp, bmp180_pressure = (None, None)
+
+            # Write Data to Database
+            try:
+                # Write data into values table
+                cur.execute(
+                    f"""
+                    INSERT INTO {database}.sensor_bmp180_values
+                        (temperature, pressure) 
+                        VALUES (?, ?);
+                    """,
+                    (bmp180_temp, bmp180_pressure)
+                )
+
+                conn.commit()
+                value_pk = cur.lastrowid
+                log.info(f"Inserted row into <sensor_bmp180_values> with ID: {value_pk}")
+
+                # Write corresponding unit into units data
+                cur.execute(
+                    f"""
+                    INSERT INTO {database}.sensor_bmp180_units
+                        (values_id, temperature_unit, pressure_unit) 
+                        VALUES (?, ?, ?);
+                    """,
+                    (value_pk, temp_unit, 'hPa')
+                )
+
+                conn.commit()
+                log.info(f"Inserted row into <sensor_bmp180_units> with ID: {cur.lastrowid}")
+
+            except (Exception, mariadb.Error) as err:
+                log.fatal("Failed to write BMP 180 Sensor data to database.")
+                log.fatal(str(err) + "\n" + indent(text=traceback.format_exc(), prefix="\t"))
+                raise
 
         # Get infos from raspberry pi system via psutil
         if what in ('all', 'pi_hw_only'):
@@ -133,10 +170,10 @@ def write_row(database: str, what: str):
                 )
 
                 conn.commit()
-                log.info(f"Last Inserted ID in <pi_hw_monitor>: {cur.lastrowid}")
+                log.info(f"Inserted row into <pi_hw_monitor> with ID: {cur.lastrowid}")
 
             except (Exception, mariadb.Error) as err:
-                log.fatal("Failed to PI Hardware Info Data to database.")
+                log.fatal("Failed to write PI Hardware Info Data to database.")
                 log.fatal(str(err) + "\n" + indent(text=traceback.format_exc(), prefix="\t"))
                 raise
 
@@ -155,6 +192,41 @@ def write_row(database: str, what: str):
 
 
 if __name__ == '__main__':
+    # Handle arguments
+    parser = argparse.ArgumentParser(description='Write a row to the MariaDB Database')
+    excl_group = parser.add_mutually_exclusive_group(required=True)
+    parser.add_argument('-d', '--database', metavar='database_name', type=str, required=True,
+                        choices=('dev_sensoric', 'test_sensoric', 'prod_sensoric'),
+                        help="Specifies database to write to. 'dev_sensoric', 'test_sensoric' or 'prod_sensoric'.")
+    excl_group.add_argument('--all_data', action='store_true',
+                            help="Specifies what to read and write. 'all_data' means bmp180 data AND pi hardware data.")
+    excl_group.add_argument('--bmp180_only', action='store_true',
+                            help="Specifies what to read and write. 'bmp180_only' means only bmp180 data.")
+    excl_group.add_argument('--pi_hw_only', action='store_true',
+                            help="Specifies what to read and write. 'pi_hw_only' means only pi hardware info data.")
+    parser.add_argument('-tu', '--temp_unit', type=str, required=False, default='C',
+                        choices=('C', 'F', 'K'),
+                        help="Unit to use for BMP180 Temperature. "
+                             "'C' for Celsius, 'F' for Fahrenheit or 'K' for Kelvin.")
 
+    args = parser.parse_args()
 
-    write_row(database='dev_sensoric', what='pi_hw_only')
+    database_name = args.database
+    if args.all_data:
+        what_data = 'all'
+    elif args.bmp180_only:
+        what_data = 'bmp180_only'
+    elif args.pi_hw_only:
+        what_data = 'pi_hw_only'
+    else:
+        log.fatal("You have to choose at least one option between --all_data, --bmp180_only and --pi_hw_only!")
+        raise AttributeError("You have to choose at least one option between"
+                             " --all_data, --bmp180_only and --pi_hw_only!")
+
+    print(args)
+    print("database: ", database_name)
+    print("what_data: ", what_data)
+    log.info(f"Calling write_row() with parameters: database={database_name}, "
+             f"what={what_data}, "
+             f"temp_unit={args.temp_unit.upper()}")
+    write_row(database=database_name, what=what_data, temp_unit=args.temp_unit.upper())
