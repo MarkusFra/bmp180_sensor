@@ -83,5 +83,8 @@ def get_disk_info() -> Tuple[int, int]:
         psutil.disk_usage('/mnt/sda1')[1]
 
 
-print(get_cpu_data())
-print(get_fan_rpm())
+if __name__ == "__main__":
+    print("nr_of_processes, cpu_usage, cpu_frequency, cpu_temp: ", get_cpu_data())
+    print("CPU Fan RPM: ", get_fan_rpm())
+    print("disk_usage_free, disk_usage_used: ", get_disk_info())
+    print("RAM Usage", get_ram_info())
