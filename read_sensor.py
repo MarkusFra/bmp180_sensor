@@ -7,8 +7,10 @@
 import smbus2
 import time
 
+from typing import Tuple
 
-def get_bmp180_data() -> tuple[float, float, float]:
+
+def get_bmp180_data() -> Tuple[float, float, float]:
     """
     Read data from BMP180 Sensor
 
